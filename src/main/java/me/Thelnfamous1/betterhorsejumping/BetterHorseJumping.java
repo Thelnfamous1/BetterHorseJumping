@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package me.Thelnfamous1.betterhorsejumping;
 
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -6,13 +6,13 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
 
-@Mod(ExampleMod.MODID)
+@Mod(BetterHorseJumping.MODID)
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
-public class ExampleMod {
-    public static final String MODID = "examplemod";
+public class BetterHorseJumping {
+    public static final String MODID = "betterhorsejumping";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public ExampleMod() {}
+    public BetterHorseJumping() {}
 
     @SubscribeEvent
     public static void onCommonSetup(FMLCommonSetupEvent event) {
