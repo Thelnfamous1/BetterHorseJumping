@@ -121,9 +121,14 @@ minecraft {
             }
         }
 
+        client2{
+            parent runs.client
+            args "--username", "Dev2"
+        }
+
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
-            args '--nogui'
+            //args '--nogui'
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

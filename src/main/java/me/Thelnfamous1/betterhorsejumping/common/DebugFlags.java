@@ -1,4 +1,4 @@
-package me.Thelnfamous1.betterhorsejumping;
+package me.Thelnfamous1.betterhorsejumping.common;
 
 import net.minecraftforge.fml.loading.FMLEnvironment;
 

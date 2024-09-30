@@ -1,8 +1,8 @@
 package me.Thelnfamous1.betterhorsejumping.mixin.client;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import me.Thelnfamous1.betterhorsejumping.AnimatableJump;
-import me.Thelnfamous1.betterhorsejumping.HorseJumpUtil;
+import me.Thelnfamous1.betterhorsejumping.common.AnimatableJump;
+import me.Thelnfamous1.betterhorsejumping.client.JumpAnimMath;
 import net.minecraft.client.model.HorseModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.util.Mth;
@@ -35,36 +35,53 @@ public abstract class HorseModelMixin<T extends AbstractHorse> {
     @Shadow @Final private ModelPart tail;
 
     @Inject(method = "prepareMobModel(Lnet/minecraft/world/entity/animal/horse/AbstractHorse;FFF)V", at = @At(value = "FIELD", target = "Lnet/minecraft/client/model/HorseModel;rightHindBabyLeg:Lnet/minecraft/client/model/geom/ModelPart;", opcode = Opcodes.GETFIELD, ordinal = 0))
-    private void post_prepareMobModel(T pEntity, float pLimbSwing, float pLimbSwingAmount, float pPartialTick, CallbackInfo ci, @Local(ordinal = 7) float xRotRadians){
-        if(((AnimatableJump)pEntity).betterhorsejumping$isJumping() && pEntity.getStandAnim(pPartialTick) == 0.0F){
-            float jumpAnim = Mth.clamp((-pEntity.getXRot() / ((AnimatableJump) pEntity).betterhorsejumping$getMaxXRotForJump()), -1.0F, 1.0F);
+    private void post_prepareMobModel(T pEntity, float walkAnimPos, float walkAnimSpeed, float pPartialTick, CallbackInfo ci, @Local(ordinal = 7) float xRotRadians){
+        float jumpAnim = ((AnimatableJump) pEntity).getJumpAnim(pPartialTick);
+        if(jumpAnim != 0.0F && pEntity.getStandAnim(pPartialTick) == 0.0F){
             float verticalDirection = Mth.sign(jumpAnim);
             float jumpAnimAbs = Mth.abs(jumpAnim);
             float jumpAnimRemaining = 1.0F - jumpAnimAbs;
-            float f13 = jumpAnimRemaining * ((HorseJumpUtil.SIXTH_PI * verticalDirection) + xRotRadians);
-            // TODO: Fix head positioning during descent
-            this.headParts.xRot = (jumpAnimAbs * ((HorseJumpUtil.TWELFTH_PI * verticalDirection) + xRotRadians) + f13);
-            this.headParts.y = (jumpAnimAbs * -4.0F + jumpAnimRemaining * 4.0F) * verticalDirection;
-            this.headParts.z = (jumpAnimAbs * -4.0F + jumpAnimRemaining * -12.0F) * verticalDirection;
 
-            this.body.xRot = jumpAnimAbs * (-HorseJumpUtil.FOURTH_PI) * verticalDirection;
+            // Rotate Head
+            float baseHeadXRot = jumpAnimRemaining * ((JumpAnimMath.SIXTH_PI));
+            float jumpingHeadXRot = jumpAnimAbs * ((JumpAnimMath.TWELFTH_PI * (verticalDirection >= 0.0F ? 1 : 3)));
+            this.headParts.xRot = (jumpingHeadXRot + baseHeadXRot);
 
-            // TODO: Fix front legs positioning during descent
-            this.leftFrontLeg.y = (2.0F * jumpAnimAbs + 14.0F * jumpAnimRemaining) * verticalDirection;
-            this.leftFrontLeg.z = (-6.0F * jumpAnimAbs - 10.0F * jumpAnimRemaining) * verticalDirection;
+            // Shift Head
+            float jumpingHeadYShiftMax = verticalDirection >= 0.0F ? -4.0F : 12.0F;
+            float jumpingHeadZShiftMax = verticalDirection >= 0.0F ? -4.0F : -20.0F;
+            this.headParts.y = (jumpAnimAbs * jumpingHeadYShiftMax + jumpAnimRemaining * 4.0F);
+            this.headParts.z = (jumpAnimAbs * jumpingHeadZShiftMax + jumpAnimRemaining * -12.0F);
+
+            // Rotate Body
+            this.body.xRot = jumpAnimAbs * (-JumpAnimMath.FOURTH_PI) * verticalDirection;
+
+            // Shift Front Legs
+            float jumpingFrontLegYMax = verticalDirection >= 0.0F ? 2.0F : 26.0F;
+            float jumpingFrontLegY = jumpingFrontLegYMax * jumpAnimAbs;
+            this.leftFrontLeg.y = (jumpingFrontLegY + 14.0F * jumpAnimRemaining);
+            float jumpingFrontLegZMax = verticalDirection >= 0.0F ? -6.0F : -14.0F;
+            float jumpingFrontLegZ = jumpingFrontLegZMax * jumpAnimAbs;
+            this.leftFrontLeg.z = (jumpingFrontLegZ - 10.0F * jumpAnimRemaining);
             this.rightFrontLeg.y = this.leftFrontLeg.y;
             this.rightFrontLeg.z = this.leftFrontLeg.z;
 
-            float f14 = HorseJumpUtil.TWELFTH_PI * jumpAnimAbs;
-            float f10 = pEntity.isInWater() ? 0.2F : 1.0F;
-            float f11 = Mth.cos(f10 * pLimbSwing * 0.6662F + Mth.PI);
+            // Rotate Back Legs
+            float jumpingBackLegXRot = (JumpAnimMath.TWELFTH_PI * verticalDirection) * jumpAnimAbs;
+            float limbSpeed = pEntity.isInWater() ? 0.2F : 1.0F;
+            float limbProgress = Mth.cos(limbSpeed * walkAnimPos * 0.6662F + Mth.PI);
+            float baseBackLegXRot = limbProgress * 0.5F * walkAnimSpeed * jumpAnimRemaining;
+            this.leftHindLeg.xRot = (jumpingBackLegXRot - baseBackLegXRot);
+            this.rightHindLeg.xRot = (jumpingBackLegXRot + baseBackLegXRot);
+
+            // Rotate Front Legs
+            float jumpingFrontLegXRotMax = -JumpAnimMath.THIRD_PI * verticalDirection;
             float tickCount = (float)pEntity.tickCount + pPartialTick;
-            float f15 = Mth.cos(tickCount * 0.6F + Mth.PI);
-            this.leftHindLeg.xRot = (f14 - f11 * 0.5F * pLimbSwingAmount * jumpAnimRemaining);
-            this.rightHindLeg.xRot = (f14 + f11 * 0.5F * pLimbSwingAmount * jumpAnimRemaining);
-            float f12 = f11 * 0.8F * pLimbSwingAmount;
-            this.leftFrontLeg.xRot = ((-HorseJumpUtil.THIRD_PI) + f15) * jumpAnimAbs + f12 * jumpAnimRemaining;
-            this.rightFrontLeg.xRot = ((-HorseJumpUtil.THIRD_PI) - f15) * jumpAnimAbs - f12 * jumpAnimRemaining;
+            float jumpingSwingAdditional = Mth.cos(tickCount * 0.6F + Mth.PI);
+            float baseFrontLegSwing = limbProgress * 0.8F * walkAnimSpeed;
+            float baseFrontLegXRot = baseFrontLegSwing * jumpAnimRemaining;
+            this.leftFrontLeg.xRot = (jumpingFrontLegXRotMax + jumpingSwingAdditional) * jumpAnimAbs + baseFrontLegXRot;
+            this.rightFrontLeg.xRot = (jumpingFrontLegXRotMax - jumpingSwingAdditional) * jumpAnimAbs - baseFrontLegXRot;
         }
     }
 }
