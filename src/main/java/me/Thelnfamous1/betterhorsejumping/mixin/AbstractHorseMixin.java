@@ -2,15 +2,14 @@ package me.Thelnfamous1.betterhorsejumping.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import me.Thelnfamous1.betterhorsejumping.BetterHorseJumping;
 import me.Thelnfamous1.betterhorsejumping.common.AnimatableJump;
+import me.Thelnfamous1.betterhorsejumping.common.DebugFlags;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.level.Level;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,15 +17,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.function.Predicate;
-
 @Mixin(AbstractHorse.class)
 public abstract class AbstractHorseMixin extends Animal implements AnimatableJump {
 
-    @Shadow public abstract boolean isJumping();
+    @Unique
+    private JumpPhase betterhorsejumping$jumpPhase = JumpPhase.LANDED;
 
-    @Shadow private float standAnimO;
-    @Shadow @Final private static Predicate<LivingEntity> PARENT_HORSE_SELECTOR;
+    @Shadow public abstract boolean isJumping();
     @Unique
     private float betterhorsejumping$jumpPitch0;
     @Unique
@@ -53,27 +50,9 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
         this.betterhorsejumping$jumpPitch0 = this.betterhorsejumping$jumpPitch;
         if(this.isControlledByLocalInstance()){
             if(this.isJumping()){
-                this.betterhorsejumping$increaseJumpPitch(this.getDeltaMovement());
+                this.betterhorsejumping$pitchJumpTowardsMovement(this.getDeltaMovement());
             } else {
-                this.betterhorsejumping$decreaseJumpPitch();
-            }
-        }
-    }
-
-    @Inject(method = "positionRider", at = @At("TAIL"))
-    private void post_positionRider(Entity pPassenger, MoveFunction pCallback, CallbackInfo ci){
-        float jumpAnim = this.getJumpAnim(0.0F);
-        if (jumpAnim != 0.0F && this.standAnimO <= 0.0F) {
-            float xScale = Mth.sin(this.yBodyRot * Mth.DEG_TO_RAD);
-            float zScale = Mth.cos(this.yBodyRot * Mth.DEG_TO_RAD);
-            float xzOffset = 0.7F * Mth.abs(jumpAnim);
-            float additionalYOffset = 0.15F * jumpAnim;
-            pCallback.accept(pPassenger,
-                    this.getX() + (double)(xzOffset * xScale),
-                    this.getY() + this.getPassengersRidingOffset() + pPassenger.getMyRidingOffset() + (double)additionalYOffset,
-                    this.getZ() - (double)(xzOffset * zScale));
-            if (pPassenger instanceof LivingEntity) {
-                ((LivingEntity)pPassenger).yBodyRot = this.yBodyRot;
+                this.betterhorsejumping$resetJumpPitch();
             }
         }
     }
@@ -90,14 +69,31 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
 
     @Override
     public void betterhorsejumping$setJumpPitch(float jumpPitch, boolean absolute) {
-        this.betterhorsejumping$jumpPitch = jumpPitch;
+        float maxJumpPitch = this.betterhorsejumping$getMaxJumpPitch();
+        float prevJumpPitch = this.betterhorsejumping$jumpPitch;
+        this.betterhorsejumping$jumpPitch = Mth.clamp(jumpPitch, -maxJumpPitch, maxJumpPitch);
+        JumpPhase prevPhase = this.betterhorsejumping$jumpPhase;
+        this.betterhorsejumping$jumpPhase = this.betterhorsejumping$jumpPhase.updatePhase(prevJumpPitch, this.betterhorsejumping$jumpPitch);
+        if(prevJumpPitch != this.betterhorsejumping$jumpPitch){
+            if(DebugFlags.DEBUG_HORSE_JUMP)
+                BetterHorseJumping.LOGGER.info("Updated jumpPitch for {} from {} to {}", this, prevJumpPitch, this.betterhorsejumping$jumpPitch);
+        }
+        if(prevPhase != this.betterhorsejumping$jumpPhase){
+            if(DebugFlags.DEBUG_HORSE_JUMP)
+                BetterHorseJumping.LOGGER.info("Updated JumpPhase for {} from {} to {}", this, prevPhase, this.betterhorsejumping$jumpPhase);
+        }
         if(absolute){
-            this.betterhorsejumping$jumpPitch0 = jumpPitch;
+            this.betterhorsejumping$jumpPitch0 = this.betterhorsejumping$jumpPitch;
         }
     }
 
     @Override
     public float betterhorsejumping$getLerpJumpPitch(float pPartialTick) {
         return Mth.lerp(pPartialTick, this.betterhorsejumping$jumpPitch0, this.betterhorsejumping$jumpPitch);
+    }
+
+    @Override
+    public JumpPhase betterhorsejumping$getJumpPhase() {
+        return this.betterhorsejumping$jumpPhase;
     }
 }
