@@ -22,6 +22,8 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
 
     @Unique
     private JumpPhase betterhorsejumping$jumpPhase = JumpPhase.LANDED;
+    @Unique
+    private float betterhorsejumping$startJumpPitch;
 
     @Shadow public abstract boolean isJumping();
     @Unique
@@ -58,20 +60,14 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
     }
 
     @Override
-    public float betterhorsejumping$getMaxJumpPitch() {
-        return 30.0F;
-    }
-
-    @Override
     public float betterhorsejumping$getJumpPitch() {
         return this.betterhorsejumping$jumpPitch;
     }
 
     @Override
     public void betterhorsejumping$setJumpPitch(float jumpPitch, boolean absolute) {
-        float maxJumpPitch = this.betterhorsejumping$getMaxJumpPitch();
         float prevJumpPitch = this.betterhorsejumping$jumpPitch;
-        this.betterhorsejumping$jumpPitch = Mth.clamp(jumpPitch, -maxJumpPitch, maxJumpPitch);
+        this.betterhorsejumping$jumpPitch = jumpPitch;
         JumpPhase prevPhase = this.betterhorsejumping$jumpPhase;
         this.betterhorsejumping$jumpPhase = this.betterhorsejumping$jumpPhase.updatePhase(prevJumpPitch, this.betterhorsejumping$jumpPitch);
         if(prevJumpPitch != this.betterhorsejumping$jumpPitch){
@@ -79,6 +75,11 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
                 BetterHorseJumping.LOGGER.info("Updated jumpPitch for {} from {} to {}", this, prevJumpPitch, this.betterhorsejumping$jumpPitch);
         }
         if(prevPhase != this.betterhorsejumping$jumpPhase){
+            if(this.betterhorsejumping$jumpPhase == JumpPhase.LAUNCHING){
+                this.betterhorsejumping$startJumpPitch = this.betterhorsejumping$jumpPitch;
+            } else if(this.betterhorsejumping$jumpPhase == JumpPhase.LANDED){
+                this.betterhorsejumping$startJumpPitch = 0.0F;
+            }
             if(DebugFlags.DEBUG_HORSE_JUMP)
                 BetterHorseJumping.LOGGER.info("Updated JumpPhase for {} from {} to {}", this, prevPhase, this.betterhorsejumping$jumpPhase);
         }
@@ -95,5 +96,10 @@ public abstract class AbstractHorseMixin extends Animal implements AnimatableJum
     @Override
     public JumpPhase betterhorsejumping$getJumpPhase() {
         return this.betterhorsejumping$jumpPhase;
+    }
+
+    @Override
+    public float betterhorsejumping$getStartJumpPitch() {
+        return this.betterhorsejumping$startJumpPitch;
     }
 }

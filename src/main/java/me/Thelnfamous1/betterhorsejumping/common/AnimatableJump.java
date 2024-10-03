@@ -13,8 +13,6 @@ public interface AnimatableJump {
         return Mth.lfloor((animation * animationDuration) * 1000.0F);
     }
 
-    float betterhorsejumping$getMaxJumpPitch();
-
     float betterhorsejumping$getJumpPitch();
 
     void betterhorsejumping$setJumpPitch(float jumpPitch, boolean absolute);
@@ -31,9 +29,9 @@ public interface AnimatableJump {
 
     default void betterhorsejumping$resetJumpPitch(){
         float jumpPitch = this.betterhorsejumping$getJumpPitch();
+        float startJumpPitch = Mth.abs(this.betterhorsejumping$getStartJumpPitch());
         if(jumpPitch != 0.0F){
-            float maxJumpPitch = this.betterhorsejumping$getMaxJumpPitch();
-            float pitchAddition = maxJumpPitch / LANDING_DURATION;
+            float pitchAddition = startJumpPitch / LANDING_DURATION;
             if(jumpPitch < 0.0F){
                 this.betterhorsejumping$setJumpPitch(Math.min(jumpPitch + pitchAddition, 0), false);
             } else{
@@ -44,25 +42,30 @@ public interface AnimatableJump {
 
     default float betterhorsejumping$getJumpAnim(float pPartialTick){
         float jumpPitchAbs = Mth.abs(this.betterhorsejumping$getLerpJumpPitch(pPartialTick));
-        float maxJumpPitch = this.betterhorsejumping$getMaxJumpPitch();
+        float startJumpPitchAbs = Mth.abs(this.betterhorsejumping$getStartJumpPitch());
+        if(startJumpPitchAbs == 0.0F){
+            return 0.0F;
+        }
         switch (this.betterhorsejumping$getJumpPhase()){
             case LAUNCHING -> {
-                return Mth.clamp((jumpPitchAbs / maxJumpPitch), 0, 1) * 0.25F;
+                return Mth.clamp((jumpPitchAbs / startJumpPitchAbs), 0, 1) * 0.25F;
             }
             case ASCENDING -> {
-                return Mth.clamp((1 - (jumpPitchAbs / maxJumpPitch)), 0, 1) * 0.25F + 0.25F;
+                return Mth.clamp((1 - (jumpPitchAbs / startJumpPitchAbs)), 0, 1) * 0.25F + 0.25F;
             }
             case DESCENDING -> {
-                return Mth.clamp((jumpPitchAbs / maxJumpPitch), 0, 1) * 0.25F + 0.5F;
+                return Mth.clamp((jumpPitchAbs / startJumpPitchAbs), 0, 1) * 0.25F + 0.5F;
             }
             case LANDING -> {
-                return Mth.clamp((1 - (jumpPitchAbs / maxJumpPitch)), 0, 1) * 0.25F + 0.75F;
+                return Mth.clamp((1 - (jumpPitchAbs / startJumpPitchAbs)), 0, 1) * 0.25F + 0.75F;
             }
             default -> {
                 return 0.0F;
             }
         }
     }
+
+    float betterhorsejumping$getStartJumpPitch();
 
     float betterhorsejumping$getLerpJumpPitch(float pPartialTick);
 
@@ -91,7 +94,7 @@ public interface AnimatableJump {
                     }
                 }
                 case ASCENDING -> {
-                    if(Mth.abs(newJumpPitch) > 0.0F){
+                    if(Mth.abs(prevJumpPitch) < Mth.abs(newJumpPitch)){
                         return DESCENDING;
                     }
                 }
